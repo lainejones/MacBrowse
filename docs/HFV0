@@ -1,0 +1,24 @@
+/* HFV0 - DOSDriver for MacHFS-Handler: a Mac HFS disk image (ShapeShifter .hfv)
+   as the AmigaDOS device HFV0:.
+
+   Copy this file to DEVS:DOSDrivers/ (with an icon, e.g. one of the others there),
+   set Startup to your image, and double-click it or "Mount DEVS:DOSDrivers/HFV0".
+   For a second image copy it to HFV1 and so on.
+
+   Startup = "<image> [RO] [NODOUBLE] [PART=n] [LOG=file]"
+     RO        read-only (also allowed for a disk that is not cleanly unmounted)
+     NODOUBLE  hide the "._name" AppleDouble files that carry resource forks
+     PART=n    the n-th HFS partition of an image with an Apple partition map
+     LOG=file  write a debug log ("SERIAL" for the serial port)
+   A path with spaces goes in single quotes: Startup = "'MacDisks:My Disk.hfv' RO"
+
+   Unmount with "MacMount HFV0: UNMOUNT".  MacMount mounts without a DOSDriver and
+   checks the image first:  MacMount HFV0: MacDisks:Transfer.hfv
+
+   Never let ShapeShifter use the image while it is mounted here.  */
+
+Handler   = L:MacHFS-Handler
+Stacksize = 16384
+Priority  = 5
+GlobVec   = -1
+Startup   = "MacDisks:Transfer.hfv"
