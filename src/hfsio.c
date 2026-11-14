@@ -127,6 +127,8 @@ int io_mkdir(const char *name)
     return 0;
 }
 
+int io_delete(const char *name) { return DeleteFile((STRPTR)name) ? 0 : -1; }
+
 const char *io_errstr(void)
 {
     LONG e = IoErr();
@@ -226,6 +228,7 @@ long io_size(IOF *f) { struct stat st; return fstat(f->fd, &st) ? -1 : (long)st.
 int io_exists(const char *n) { struct stat st; return stat(n, &st) == 0; }
 int io_isdir(const char *n) { struct stat st; return stat(n, &st) == 0 && S_ISDIR(st.st_mode); }
 int io_mkdir(const char *n) { if (io_isdir(n)) return 0; return mkdir(n, 0755); }
+int io_delete(const char *n) { return io_isdir(n) ? rmdir(n) : unlink(n); }
 const char *io_errstr(void) { return strerror(errno); }
 int io_scandir(const char *dir, io_dircb cb, void *ud)
 {

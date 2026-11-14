@@ -22,6 +22,7 @@ long  io_size(IOF *f);                 /* file size or -1 */
 int   io_exists(const char *name);     /* 1 if a file/dir of that name exists */
 int   io_isdir(const char *name);      /* 1 if it is a directory */
 int   io_mkdir(const char *name);      /* 0 ok (also if it already exists as a dir) */
+int   io_delete(const char *name);     /* 0 ok; a directory has to be empty */
 const char *io_errstr(void);           /* text for the last OS error */
 
 /* Directory scan: calls cb for each entry name (not recursive). */

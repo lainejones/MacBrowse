@@ -34,6 +34,9 @@ MKDIR <path>             create a folder
 DELETE <path..>          delete files or empty folders
 RENAME <path> <newpath>  rename or move (into newpath if it is a folder; ":" = the volume)
 CHECK                    verify B-trees, node maps, bitmap and MDB counts
+CREATE <MB> [NAME name]  write a new, empty image (FORCE: over an old one)
+SYNCIN <drawer> [FREE mb] [NAME name]   make the image match an AmigaDOS drawer
+SYNCOUT <drawer>         bring what changed on the Mac back to the drawer
 MOUNT <device:> [RO] [NODOUBLE]   mount as an AmigaDOS volume (see below)
 Options: PART n  RAW  FORCE  QUIET  VERBOSE   (-- ends the options)
 ```
@@ -66,6 +69,44 @@ MacBrowse MacDisks:MacHD.hfv LIST ALL
 MacBrowse MacDisks:MacHD.hfv GET "Applications:SimpleText" TO RAM: MODE MACBIN
 MacBrowse MacDisks:Transfer.hfv PUT RAM:Download/#? TO "Incoming"
 ```
+
+### A synced drawer
+
+`SYNCIN` and `SYNCOUT` keep an image and an AmigaDOS drawer the same, so that a drawer
+of the Amiga shows up as a disk on the Mac desktop. ShapeShifter 3.20 runs them by itself
+for its "synced drawer"; by hand it is:
+
+```
+MacBrowse Work:Shared.hfv SYNCIN Work:Shared NAME Amiga   ; before the Mac starts
+... use the disk "Amiga" on the Mac, shut the Mac down ...
+MacBrowse Work:Shared.hfv SYNCOUT Work:Shared              ; afterwards
+```
+
+* `SYNCIN` creates the image when there is none, sized for the drawer plus `FREE`
+  megabytes (32 by default), and makes a new, larger one when the drawer has outgrown
+  it or when the Mac did not shut the old one down cleanly. Before it changes the image
+  it first does what `SYNCOUT` does, so a Mac session that ended without a sync loses
+  nothing.
+* What both sides looked like after the last sync is kept in `<image>.sync`. A file that
+  changed on one side is copied to the other. One that changed on both sides is kept
+  twice: the Mac's version appears in the drawer as `name (Mac)`. A file deleted on one
+  side is deleted on the other, unless it was changed there in the meantime.
+* Files go to the Mac as they are (no MacBinary or BinHex decoding); the type and creator
+  come from the extension. A Mac file with a resource fork, or with a type the extension
+  does not give, comes back with an AppleDouble sidecar `._name`, which `SYNCIN` uses to
+  put the file back complete.
+* Left out: `.info` icons, the sidecars as items of their own, AmigaDOS names longer
+  than 31 characters (with a warning), and the Mac's invisible items (Desktop files,
+  Trash). The Mac's icon positions and window settings therefore do not survive a
+  rebuilt image.
+* Two safety rules for deleting in the drawer: nothing is deleted when the image is not
+  the one of the last sync (erased on the Mac, or replaced), and nothing is deleted when
+  more than half of the files (and more than ten) are missing on the Mac. The next
+  `SYNCIN` then puts the files on the Mac again. `FORCE` switches both rules off.
+* An image remembers its drawer. `SYNCIN` with another drawer makes the image anew
+  without bringing anything over; `SYNCOUT` into another drawer is refused.
+* The sync is not live: it runs while the Mac is not using the image. An image and its
+  drawer hold up to 2 GB.
 
 The return codes are 0 on success, 5 for a break (Ctrl-C), 10 if some items failed and
 20 if the image could not be opened.

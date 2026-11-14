@@ -10,6 +10,9 @@ typedef struct {
     const char *paths[64];
     int npaths, part, depth;
     int all, raw, force, replace, quiet, verbose, plain, mode, ro, nodouble;
+    const char *name;       /* NAME: volume name for CREATE / SYNCIN */
+    int freemb;             /* FREE: megabytes to spare in a new synced disk */
+    int sync;               /* SYNCIN: files go over as they are (no MacBinary/BinHex decoding) */
 } Opts;
 
 extern Opts O;

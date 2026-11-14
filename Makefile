@@ -2,7 +2,7 @@
 # Host test build (native gcc):     make host
 CC      = m68k-amigaos-gcc
 CFLAGS  = -O2 -noixemul -Wall -Wno-pointer-sign -fomit-frame-pointer
-SRCS    = src/main.c src/hfs.c src/hfsio.c src/charset.c src/macfmt.c
+SRCS    = src/main.c src/sync.c src/hfs.c src/hfsio.c src/charset.c src/macfmt.c
 OUT     = out
 
 all: $(OUT)/MacBrowse $(OUT)/MacBrowse.info $(OUT)/MacHFS-Handler $(OUT)/MacMount

@@ -11,6 +11,7 @@
 #include "macfmt.h"
 #include "version.h"
 #include "ops.h"
+#include "sync.h"
 #include <stdarg.h>
 
 #if defined(AMIGA) || defined(__amigaos__)
@@ -117,6 +118,10 @@ static void usage(void)
          "  DELETE <path..>          delete files / empty folders\n"
          "  RENAME <path> <newpath>  rename or move (into newpath if it is a folder)\n"
          "  CHECK                    verify B-trees, bitmap and counts\n"
+         "  CREATE <MB> [NAME name]  write a new, empty image (FORCE: over an old one)\n"
+         "  SYNCIN <drawer> [FREE mb] [NAME name]\n"
+         "                           make the image match an AmigaDOS drawer (creates it)\n"
+         "  SYNCOUT <drawer>         bring what changed on the Mac back to the drawer\n"
          "  MOUNT <device:> [RO] [NODOUBLE]   mount as a volume with L:MacHFS-Handler\n"
          "  UNMOUNT <device:>        unmount it again (the image argument is ignored)\n"
          "Options: PART n  RAW (Mac Roman names)  FORCE  QUIET  VERBOSE   -- ends options\n"
@@ -138,6 +143,7 @@ static int setmode(const char *m)
 static int iskey(const char *k)
 {
     return kw(k, "TO") || kw(k, "AS") || kw(k, "TYPE") || kw(k, "CREATOR") || kw(k, "PART") ||
+           kw(k, "NAME") || kw(k, "FREE") ||
            kw(k, "DEPTH") || kw(k, "MODE");
 }
 
@@ -168,6 +174,8 @@ static int parse_args(int argc, char **argv)
             else if (kw(a, "CREATOR")) O.creator = val;
             else if (kw(a, "PART")) O.part = atoi(val);
             else if (kw(a, "MODE")) { if (setmode(val)) return -1; }
+            else if (kw(a, "NAME")) O.name = val;
+            else if (kw(a, "FREE")) O.freemb = atoi(val);
             else O.depth = atoi(val);
             continue;
         }
@@ -212,6 +220,16 @@ static int wmatch(const char *p, const char *s)
         }
         p++; s++;
     }
+}
+
+uint8_t mb_last_pn[32];
+static void to_pname(uint8_t *pn, const char *lat, int n);
+void mb_to_pname(uint8_t *pn, const char *lat)
+{
+    int i;
+    memset(pn, 0, 32);
+    to_pname(pn, lat, (int)strlen(lat));
+    for (i = 1; i <= pn[0]; i++) if (pn[i] == ':') pn[i] = '-';
 }
 
 static void to_pname(uint8_t *pn, const char *lat, int n)
@@ -770,7 +788,7 @@ static int put_file(HVol *v, const char *src, uint32_t parid, const char *asname
     hn = size < (long)sizeof(h) ? (int)size : (int)sizeof(h);
     memset(h, 0, sizeof(h));
     if (hn > 0) io_pread(f, 0, h, hn);
-    if (!O.plain) {
+    if (!O.plain && !O.sync) {
         if (size >= 128 && !mb_parse(h, size, &m)) kind = 1;
         else if (!ad_parse(f, size, &m) && m.has_data) kind = 2;
         else if (hqx_detect(h, hn)) {
@@ -837,6 +855,8 @@ static int put_file(HVol *v, const char *src, uint32_t parid, const char *asname
             if (hfs_delete(v, parid, pn)) { errf("MacBrowse: cannot replace: %s\n", v->err); r = -1; goto out; }
         }
     }
+    memset(mb_last_pn, 0, 32);
+    memcpy(mb_last_pn, pn, pn[0] + 1);
     r = hfs_create_file(v, parid, pn, m.finfo, m.fxinfo, m.crdat, m.mddat, &fd, &fr, &id);
     if (r) {
         errf("MacBrowse: %s: %s\n", src, v->err);
@@ -1004,6 +1024,14 @@ int main(int argc, char **argv)
     }
     c = O.cmd;
     if (kw(c, "PARTS")) return cmd_parts();
+    if (kw(c, "CREATE")) return cmd_create();
+    if (kw(c, "SYNCIN") || kw(c, "SYNCOUT")) {
+        if (!(copybuf = malloc(COPYBUF))) return 20;
+        O.sync = 1;
+        rc = kw(c, "SYNCIN") ? cmd_syncin() : cmd_syncout();
+        free(copybuf);
+        return broken == 1 ? 5 : rc;
+    }
 #ifdef AMIGA_HOST
     if (kw(c, "MOUNT")) {
         MountOpts m;
